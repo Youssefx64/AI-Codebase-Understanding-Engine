@@ -1,0 +1,13 @@
+uploads = []
+
+[[generated]]
+id = "sD3AXUaSaFvyp7ptDbG-r"
+uri = "file://assets/logo.png"
+type = "image"
+title = "codeengine logo dark violet hexagon"
+
+[[outputs]]
+id = "AfUH7euTHUUO6vjU15y1o"
+uri = "file://assets/logo.png"
+type = "image"
+title = "CodeEngine Logo"

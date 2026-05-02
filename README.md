@@ -1,6 +1,14 @@
-# CodeEngine — AI Codebase Understanding Platform
+<p align="center">
+  <img src="assets/logo.png" alt="CodeEngine Logo" width="180" />
+</p>
 
-> Submit any GitHub repository and get instant AI-powered analysis: architecture diagrams, interactive dependency graphs, bug detection, refactoring suggestions, and RAG-powered Q&A.
+<h1 align="center">CodeEngine — AI Codebase Understanding Platform</h1>
+
+<p align="center">
+  Submit any GitHub repository and get instant AI-powered analysis: architecture diagrams, interactive dependency graphs, bug detection, refactoring suggestions, and RAG-powered Q&A.
+</p>
+
+<p align="center">
 
 ![Landing page](https://img.shields.io/badge/status-production--ready-brightgreen)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
@@ -8,6 +16,8 @@
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
+
+</p>
 
 ---
 
