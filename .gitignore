@@ -116,3 +116,6 @@ replit.nix
 .upm/
 .cursor/
 .github/instructions/nx.instructions.md
+
+# ─── Replit conversation assets (internal prompts — not for GitHub) ──────────
+attached_assets/
