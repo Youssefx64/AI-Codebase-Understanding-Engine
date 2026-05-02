@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, FileText, CheckCircle2, AlertTriangle, Info, MessageSquare, Send, GitBranch, ArrowLeft, Loader2, GitCommit, Layers, Code2, AlertOctagon } from "lucide-react";
-import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState } from "@xyflow/react";
+import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, type Node, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion } from "framer-motion";
 
@@ -252,8 +252,8 @@ function GraphTab({ id }: { id: string }) {
     queryFn: () => analysisApi.graph(id),
   });
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   useEffect(() => {
     if (graphData && graphData.nodes) {
