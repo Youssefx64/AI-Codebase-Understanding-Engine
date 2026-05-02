@@ -1,0 +1,211 @@
+You are a Senior Staff Software Engineer, System Architect, and AI Engineer.
+
+Your task is to design and implement a production-grade, scalable, and modular system called:
+
+"AI Codebase Understanding Engine"
+
+This system analyzes any GitHub repository and provides deep insights including:
+
+* Architecture explanation
+* Dependency graph
+* Code summaries
+* Bug detection (static + semantic)
+* Refactoring suggestions
+* Developer Q&A over the codebase
+
+---
+
+## 🧠 SYSTEM GOALS
+
+Build a full backend system with clean architecture, strong engineering principles, and extensibility. The system should combine:
+
+* Static code analysis (AST parsing)
+* Graph-based representation of code
+* LLM-powered reasoning (RAG)
+* Scalable API design
+* Async processing for large repos
+
+---
+
+## ⚙️ TECH STACK
+
+* Language: Python 3.11+
+* Backend: FastAPI
+* Database:
+
+  * PostgreSQL (metadata)
+  * Graph DB (Neo4j) for code relationships
+* Vector DB: FAISS or Chroma
+* LLM Integration: OpenAI / HuggingFace Transformers
+* Task Queue: Celery + Redis
+* Containerization: Docker
+* Optional: Kubernetes-ready structure
+
+---
+
+## 🏗️ ARCHITECTURE REQUIREMENTS
+
+Use CLEAN ARCHITECTURE with separation of concerns:
+
+* api/
+* core/
+* services/
+* domain/
+* infrastructure/
+* workers/
+* tests/
+
+Apply SOLID principles and proper design patterns:
+
+* Factory Pattern → parser selection
+* Visitor Pattern → AST traversal
+* Strategy Pattern → analysis methods
+* Repository Pattern → DB abstraction
+
+---
+
+## 🔍 CORE FEATURES TO IMPLEMENT
+
+### 1. Repository Ingestion
+
+* Accept GitHub repo URL
+* Clone repo locally
+* Detect programming language(s)
+
+### 2. Code Parsing (AST Engine)
+
+* Parse Python code using ast module
+* Extract:
+
+  * Classes
+  * Functions
+  * Imports
+  * Call relationships
+
+### 3. Dependency Graph
+
+* Build graph of:
+
+  * Files
+  * Modules
+  * Functions
+* Store in Neo4j
+
+### 4. Vector Embedding Pipeline
+
+* Chunk code files
+* Generate embeddings
+* Store in vector DB
+
+### 5. RAG System
+
+* Retrieve relevant code chunks
+* Answer developer questions using LLM
+
+### 6. Code Understanding
+
+* Generate:
+
+  * File summaries
+  * Module summaries
+  * Full architecture explanation
+
+### 7. Bug Detection
+
+* Static rules:
+
+  * Unused variables
+  * Circular imports
+* Semantic detection using LLM
+
+### 8. Refactoring Suggestions
+
+* Improve code structure
+* Suggest design patterns
+* Detect code smells
+
+### 9. API Endpoints
+
+Design REST APIs:
+
+* POST /analyze-repo
+* GET /repo-summary/{id}
+* GET /dependency-graph/{id}
+* POST /ask
+* GET /issues/{id}
+* GET /refactor/{id}
+
+---
+
+## ⚡ PERFORMANCE & SCALABILITY
+
+* Use async endpoints
+* Offload heavy tasks to Celery workers
+* Handle large repositories efficiently
+* Add caching (Redis)
+
+---
+
+## 🧪 TESTING
+
+* Unit tests for services
+* Integration tests for APIs
+* Mock LLM responses
+
+---
+
+## 🐳 DEVOPS
+
+* Dockerfile
+* docker-compose (API + DB + Redis + Neo4j)
+* Environment variables
+* Logging system
+
+---
+
+## 📦 DELIVERABLES
+
+Generate:
+
+1. Full project structure
+2. All core modules implemented
+3. Working FastAPI server
+4. Example API usage
+5. Sample test cases
+6. README.md with:
+
+   * Setup instructions
+   * Architecture explanation
+   * API documentation
+
+---
+
+## 🎯 CODE QUALITY
+
+* Type hints everywhere
+* Docstrings for all functions
+* Modular, readable code
+* Avoid monolithic files
+* Follow PEP8
+
+---
+
+## 🚀 BONUS (IF POSSIBLE)
+
+* Add basic frontend (optional)
+* Add GitHub OAuth integration
+* Add visualization for dependency graph
+
+---
+
+Start by:
+
+1. Designing the system architecture
+2. Creating the folder structure
+3. Implementing the core modules step by step
+
+DO NOT skip steps.
+DO NOT simplify.
+Think like a production engineer building a real startup product.
+
+Output clean, structured, and complete code.

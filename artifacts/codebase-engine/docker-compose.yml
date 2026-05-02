@@ -1,0 +1,164 @@
+version: "3.9"
+
+services:
+  # ─── FastAPI Application ──────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      target: production
+    container_name: codebase_engine_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/codebase_engine
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CHROMA_PERSIST_DIR=/app/data/chroma
+      - REPOS_BASE_DIR=/app/data/repos
+      - DEBUG=false
+      - LLM_MODEL=gpt-4o-mini
+    env_file:
+      - .env
+    volumes:
+      - repo_data:/app/data/repos
+      - chroma_data:/app/data/chroma
+      - graph_data:/app/data/graphs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+  # ─── Celery Worker ────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      target: production
+    container_name: codebase_engine_worker
+    command: celery -A workers.celery_app worker --loglevel=info --queues=analysis,embeddings --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/codebase_engine
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CHROMA_PERSIST_DIR=/app/data/chroma
+      - REPOS_BASE_DIR=/app/data/repos
+    env_file:
+      - .env
+    volumes:
+      - repo_data:/app/data/repos
+      - chroma_data:/app/data/chroma
+      - graph_data:/app/data/graphs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+  # ─── Celery Beat (optional scheduler) ────────────────────────────────────
+  beat:
+    build:
+      context: .
+      target: production
+    container_name: codebase_engine_beat
+    command: celery -A workers.celery_app beat --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: codebase_engine_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: codebase_engine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+  # ─── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: codebase_engine_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+  # ─── Neo4j (optional graph database) ─────────────────────────────────────
+  neo4j:
+    image: neo4j:5-community
+    container_name: codebase_engine_neo4j
+    profiles:
+      - neo4j  # Start only with: docker compose --profile neo4j up
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["graph-data-science"]'
+    volumes:
+      - neo4j_data:/data
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt protocol
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+  # ─── Flower (Celery monitoring) ───────────────────────────────────────────
+  flower:
+    image: mher/flower:2.0
+    container_name: codebase_engine_flower
+    profiles:
+      - monitoring
+    command: celery flower --broker=redis://redis:6379/0 --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - engine_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  repo_data:
+  chroma_data:
+  graph_data:
+
+networks:
+  engine_network:
+    driver: bridge
