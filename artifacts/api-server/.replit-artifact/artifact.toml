@@ -30,3 +30,11 @@ NODE_ENV = "production"
 
 [services.production.health.startup]
 path = "/api/healthz"
+
+[[services]]
+localPort = 8000
+name = "Python Codebase Engine"
+paths = ["/engine"]
+
+[services.development]
+run = "cd artifacts/codebase-engine && PYTHONPATH=. python main.py"

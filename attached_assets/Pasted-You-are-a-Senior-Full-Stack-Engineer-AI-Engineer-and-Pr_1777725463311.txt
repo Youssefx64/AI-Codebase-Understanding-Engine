@@ -1,0 +1,220 @@
+You are a Senior Full-Stack Engineer, AI Engineer, and Product Architect.
+
+You are working on an already implemented backend system called:
+
+"AI Codebase Understanding Engine"
+
+The backend is already built using FastAPI, Celery, PostgreSQL, Vector DB, and Graph DB.
+
+Your task is to transform this system into a complete, production-ready FULL-STACK platform.
+
+DO NOT rebuild the backend.
+EXTEND the system to make it a real SaaS product.
+
+---
+
+## 🎯 PRODUCT VISION
+
+Build a developer platform where users can:
+
+* Sign up / log in
+* Submit GitHub repositories
+* Track analysis progress
+* View results in a rich dashboard
+* Ask questions about the codebase (RAG)
+* See issues and refactoring suggestions
+* Visualize architecture and dependencies
+
+---
+
+## 🧱 FRONTEND REQUIREMENTS
+
+Use:
+
+* Next.js (App Router)
+* TypeScript
+* Tailwind CSS
+* ShadCN UI (or clean component system)
+
+### Pages:
+
+1. Landing Page
+
+   * Hero section
+   * Product explanation
+   * CTA (Start analyzing)
+
+2. Auth صفحات:
+
+   * Sign up
+   * Login
+   * JWT-based auth
+
+3. Dashboard
+
+   * List user repositories
+   * Status (pending / processing / completed)
+   * Create new analysis
+
+4. Repo Analysis Page
+
+   * Repository overview
+   * Architecture explanation
+   * File/module summaries
+   * Issues list
+   * Refactor suggestions
+   * Dependency graph visualization
+   * Q&A chat interface
+
+5. Chat Page (optional)
+
+   * ChatGPT-like UI for asking about code
+
+---
+
+## 🔗 BACKEND EXTENSIONS
+
+Extend existing FastAPI backend:
+
+* Add JWT Authentication
+* Add User model
+* Add repository ownership
+* Add analysis history per user
+
+New endpoints:
+
+* POST /auth/register
+* POST /auth/login
+* GET /me
+* GET /my-repos
+* DELETE /repo/{id}
+
+---
+
+## ⚡ REAL-TIME FEATURES
+
+* Show analysis progress:
+
+  * Cloning
+  * Parsing
+  * Embedding
+  * Analysis
+
+Use:
+
+* WebSockets OR polling
+
+---
+
+## 🧠 AI FEATURES IN UI
+
+* Chat interface (RAG)
+* Show:
+
+  * Sources used in answers
+  * Confidence level (optional)
+
+---
+
+## 📊 VISUALIZATION
+
+* Dependency Graph:
+
+  * Use D3.js or React Flow
+  * Interactive nodes (files / classes / functions)
+
+---
+
+## 🧪 UX REQUIREMENTS
+
+* Loading states (skeletons)
+* Error handling UI
+* Toast notifications
+* Clean modern design
+
+---
+
+## 🔐 SECURITY
+
+* JWT stored securely
+* Protect routes
+* Validate inputs
+
+---
+
+## 🐳 DEVOPS
+
+* Update docker-compose:
+
+  * frontend
+  * backend
+  * postgres
+  * redis
+  * optional neo4j
+
+* Add:
+
+  * .env.example
+  * environment config for frontend
+
+---
+
+## 📦 PROJECT STRUCTURE
+
+Organize as:
+
+/frontend (Next.js)
+/backend (existing system)
+/infra (docker, configs)
+/docs
+
+---
+
+## 📘 README UPDATE
+
+Add:
+
+* System architecture diagram
+* How to run locally
+* API + frontend usage
+* Screenshots (or instructions to generate them)
+
+---
+
+## 🚀 FINAL REQUIREMENTS
+
+* Fully working full-stack system
+* Clean, modular, scalable code
+* No placeholder logic
+* Everything connected end-to-end
+
+---
+
+## ⚠️ IMPORTANT
+
+* Do NOT overwrite existing backend logic
+* Reuse services and APIs
+* Focus on integration + UX + product quality
+
+---
+
+## 🪜 EXECUTION PLAN
+
+Follow this order:
+
+1. Setup frontend project
+2. Connect to backend APIs
+3. Implement auth
+4. Build dashboard
+5. Build repo analysis page
+6. Add chat (RAG)
+7. Add graph visualization
+8. Improve UX
+9. Update Docker
+10. Final testing end-to-end
+
+---
+
+Think like you are building a startup product that developers will actually use.
+
+Output production-quality code only.

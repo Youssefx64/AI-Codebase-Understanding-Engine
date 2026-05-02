@@ -2,82 +2,137 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript, plus a standalone Python FastAPI service for AI-powered codebase analysis.
+Full-stack SaaS platform for AI-powered codebase analysis. pnpm monorepo (TypeScript) + Python FastAPI backend + React+Vite frontend.
 
 ## Stack
 
-### TypeScript / Node.js (existing)
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+### Frontend — AI Codebase Platform (`artifacts/codebase-ui/`)
+- **Framework**: React 18 + Vite + TypeScript
+- **Routing**: wouter
+- **State**: Zustand (auth store with JWT in localStorage)
+- **Data fetching**: @tanstack/react-query
+- **HTTP client**: Axios with auth interceptor (`src/lib/api.ts`)
+- **UI**: shadcn/ui components + Tailwind CSS
+- **Graph**: @xyflow/react (ReactFlow) for dependency graph
+- **Toasts**: sonner
+- **Preview path**: `/` (port 19556 in dev)
 
-### Python (AI Codebase Understanding Engine)
-- **Python version**: 3.11
-- **API framework**: FastAPI + Uvicorn
-- **Database**: PostgreSQL (asyncpg/SQLAlchemy) with SQLite fallback
+### Backend — AI Codebase Engine (`artifacts/codebase-engine/`)
+- **Framework**: FastAPI + Uvicorn (port 8000)
+- **Route prefix**: `/engine` (all routes)
+- **Auth**: JWT (python-jose) + bcrypt password hashing
+- **Database**: PostgreSQL + SQLAlchemy ORM (SQLite fallback)
+  - Tables: `users`, `repositories`, `file_analyses`, `code_issues`, `refactor_suggestions`
 - **Vector DB**: ChromaDB (persistent, local sentence-transformer embeddings)
 - **Graph DB**: NetworkX (in-process) with optional Neo4j adapter
 - **Cache**: Redis with in-memory fallback
-- **Task queue**: Celery + Redis (optional; FastAPI BackgroundTasks used in dev)
-- **LLM**: OpenAI (via Replit AI Integrations proxy)
-- **Location**: `artifacts/codebase-engine/`
+- **Task queue**: Celery + Redis (FastAPI BackgroundTasks in dev)
+- **LLM**: OpenAI (via Replit AI Integrations proxy or direct API key)
+- **WebSocket**: `/engine/ws/progress/{repo_id}` for real-time progress
+
+### TypeScript API (`artifacts/api-server/`)
+- **Framework**: Express 5
+- **Database**: PostgreSQL + Drizzle ORM
+- **Route prefix**: `/api`
+- **Port**: 8080
 
 ## Key Commands
 
+### Frontend
+- `pnpm --filter @workspace/codebase-ui run dev` — start Vite dev server
+
+### Python Backend
+- `cd artifacts/codebase-engine && PYTHONPATH=. python main.py` — start FastAPI (port 8000)
+- `cd artifacts/codebase-engine && PYTHONPATH=. pytest tests/ -v` — run 18 unit tests
+- `cd artifacts/codebase-engine && celery -A workers.celery_app worker` — Celery worker
+- `cd artifacts/codebase-engine && docker compose up -d` — full stack with Docker
+
 ### TypeScript
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm run typecheck` — full typecheck
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks + Zod schemas
+- `pnpm --filter @workspace/db run push` — push DB schema (dev only)
 
-### Python (AI Codebase Engine)
-- `cd artifacts/codebase-engine && PYTHONPATH=. python main.py` — start FastAPI server (port 8000)
-- `cd artifacts/codebase-engine && PYTHONPATH=. pytest tests/ -v` — run all tests
-- `cd artifacts/codebase-engine && celery -A workers.celery_app worker` — start Celery worker
-- `cd artifacts/codebase-engine && docker compose up -d` — start full stack with Docker
-
-## Architecture: AI Codebase Understanding Engine
-
-### Clean Architecture Layers
+## Architecture: Routing (Proxy)
 
 ```
-api/          FastAPI routes (analyze, summary, graph, qa, issues, refactor)
-core/         Config, logging, exceptions
-domain/       Models (Repository, FileAnalysis, CodeIssue, etc.), interfaces (ports)
-services/     Business logic (RepoIngestionService, ParserService, RAGService, etc.)
-infrastructure/  DB adapters (Postgres, ChromaDB, NetworkX/Neo4j, Redis)
-parsers/      AST parsers with Factory + Visitor patterns
-workers/      Celery tasks for async processing
-tests/        Unit + integration tests
+/ (root)     →  React frontend (port 19556)
+/engine      →  Python FastAPI (port 8000)
+/api         →  TypeScript Express (port 8080)
 ```
 
-### Design Patterns
-- **Factory Pattern**: `ParserFactory` — selects correct parser by file extension
-- **Visitor Pattern**: `_ASTVisitor` — traverses Python AST nodes
-- **Strategy Pattern**: `ICodeParser` / `ILLMClient` — swappable implementations
-- **Repository Pattern**: `IRepositoryStore` / `IIssueStore` / `IRefactorStore`
+## Frontend Pages
 
-### API Endpoints
-- `POST /analyze-repo` — submit GitHub URL for analysis
-- `GET /repo-summary/{id}` — status + architecture summary
-- `GET /dependency-graph/{id}` — node-link graph (filterable)
-- `POST /ask` — RAG Q&A over the codebase
-- `GET /issues/{id}` — detected bugs (static + semantic)
+| Route | Page | Auth |
+|---|---|---|
+| `/` | Landing page | Public |
+| `/login` | Login form | Public (redirects if authed) |
+| `/register` | Registration form | Public (redirects if authed) |
+| `/dashboard` | Repo list + submit new repo | Protected |
+| `/repo/:id` | Analysis view (5 tabs) | Protected |
+
+## Python API Endpoints (all prefixed `/engine`)
+
+### Auth
+- `POST /auth/register` — create account, returns JWT
+- `POST /auth/login` — returns JWT
+- `GET /auth/me` — current user (Bearer)
+
+### Repos
+- `POST /analyze-repo` — submit GitHub URL
+- `GET /repo-summary` — list all repos
+- `GET /repo-summary/{id}` — status + summary
+- `GET /my-repos` — user's repos (Bearer)
+- `DELETE /repo/{id}` — delete repo (Bearer, owner only)
+
+### Analysis
+- `GET /dependency-graph/{id}` — node-link graph
+- `GET /issues/{id}` — code issues (filter by severity/file)
 - `GET /refactor/{id}` — refactoring suggestions
+- `POST /ask` — RAG Q&A with source citations
 
-### Workflow
-- **AI Codebase Engine** runs at port 8000
+### Real-time
+- `WS /ws/progress/{id}` — analysis progress events
 
-## Environment Variables (Python service)
-- `DATABASE_URL` — PostgreSQL URL (falls back to SQLite)
+## Auth Flow
+- JWT stored in localStorage via `useAuthStore` (Zustand)
+- `loadFromStorage()` called on app mount to restore session
+- Axios interceptor injects `Authorization: Bearer <token>` on every request
+- Protected routes redirect to `/login?returnTo=<path>` if unauthenticated
+- After login/register: `setUser(tokenResponse)` → redirect to `/dashboard`
+
+## Clean Architecture (Python Backend)
+
+```
+api/          FastAPI routes
+core/         Config, logging, exceptions
+domain/       Models + interfaces (ports)
+services/     Business logic (AuthService, RepoIngestionService, RAGService, etc.)
+infrastructure/  DB adapters (Postgres, ChromaDB, NetworkX/Neo4j, Redis)
+parsers/      AST parsers — Factory + Visitor patterns
+workers/      Celery async tasks
+tests/        18 unit + integration tests
+```
+
+## Docker (Production)
+
+`artifacts/codebase-engine/docker-compose.yml` orchestrates:
+- **nginx** — reverse proxy (port 80): `/engine` → FastAPI, `/` → Frontend
+- **frontend** — Vite production build (port 3000)
+- **api** — FastAPI (port 8000)
+- **worker** — Celery worker
+- **postgres** — PostgreSQL 16
+- **redis** — Redis 7
+- Optional profiles: `neo4j`, `monitoring` (Flower)
+
+## Environment Variables
+
+### Python Backend
+- `OPENAI_API_KEY` — for LLM features
+- `JWT_SECRET` — JWT signing secret (change in production!)
+- `DATABASE_URL` — PostgreSQL (falls back to SQLite)
 - `REDIS_URL` — Redis for cache + Celery
-- `NEO4J_URI` — optional, activates Neo4j graph store
-- `AI_INTEGRATIONS_OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_BASE_URL` — Replit proxy
-- `OPENAI_API_KEY` — direct OpenAI key (alternative)
 - `LLM_MODEL` — default `gpt-4o-mini`
+- `NEO4J_URI` — optional, activates Neo4j graph store
+
+### Frontend
+- `VITE_API_BASE` — API base path (default `/engine`)

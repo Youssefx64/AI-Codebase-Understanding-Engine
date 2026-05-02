@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from infrastructure.database.postgres import Base
@@ -11,6 +11,26 @@ from infrastructure.database.postgres import Base
 
 def _now() -> datetime:
     return datetime.utcnow()
+
+
+class UserORM(Base):
+    """Persisted state for a registered user."""
+
+    __tablename__ = "users"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+    repositories: Mapped[list["RepositoryORM"]] = relationship(
+        "RepositoryORM", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class RepositoryORM(Base):
@@ -21,7 +41,7 @@ class RepositoryORM(Base):
     repo_id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    github_url: Mapped[str] = mapped_column(String(512), unique=True, index=True)
+    github_url: Mapped[str] = mapped_column(String(512), index=True)
     owner: Mapped[str] = mapped_column(String(255), default="")
     name: Mapped[str] = mapped_column(String(255), default="")
     branch: Mapped[str] = mapped_column(String(128), default="main")
@@ -34,7 +54,11 @@ class RepositoryORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
+    user: Mapped["UserORM | None"] = relationship("UserORM", back_populates="repositories")
     issues: Mapped[list["IssueORM"]] = relationship(
         "IssueORM", back_populates="repository", cascade="all, delete-orphan"
     )

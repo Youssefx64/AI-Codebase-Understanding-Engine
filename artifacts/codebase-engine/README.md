@@ -1,215 +1,244 @@
-# AI Codebase Understanding Engine
+# AI Codebase Understanding Engine — Full-Stack Platform
 
-A production-grade, scalable system that analyses any GitHub repository and provides deep insights powered by static analysis and LLM reasoning.
+A production-grade SaaS platform where developers submit GitHub repositories and receive deep AI-powered analysis: architecture explanations, interactive dependency graphs, bug detection, refactoring suggestions, and RAG-powered Q&A chat.
+
+---
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Browser / Client                      │
+│              React + Vite SPA (port 3000)               │
+└───────────────────────┬─────────────────────────────────┘
+                        │ HTTP / WebSocket
+                        ▼
+┌─────────────────────────────────────────────────────────┐
+│                  Nginx Reverse Proxy                     │
+│   /         →  Frontend (port 3000)                    │
+│   /engine   →  FastAPI Backend (port 8000)             │
+└───────────┬──────────────────────────┬──────────────────┘
+            │                          │
+            ▼                          ▼
+┌──────────────────┐       ┌───────────────────────────────┐
+│  React + Vite    │       │  FastAPI + Python 3.11        │
+│  Frontend        │       │  All routes at /engine/*      │
+│                  │       │                               │
+│  Pages:          │       │  Auth: JWT + bcrypt           │
+│  / Landing       │       │  Repo ingestion (GitPython)   │
+│  /login          │       │  Parser (AST + regex)         │
+│  /register       │       │  Embedding (ChromaDB)         │
+│  /dashboard      │       │  RAG Q&A (OpenAI)             │
+│  /repo/:id       │       │  Bug detection (static+LLM)   │
+│    Overview tab  │       │  Refactor suggestions         │
+│    Issues tab    │       │  WebSocket progress           │
+│    Refactor tab  │       └───────────┬───────────────────┘
+│    Graph tab     │                   │
+│    Q&A tab       │    ┌──────────────┼──────────────────┐
+└──────────────────┘    ▼              ▼                   ▼
+              ┌──────────────┐ ┌──────────┐ ┌────────────────┐
+              │  PostgreSQL  │ │  Redis   │ │   ChromaDB     │
+              │  users       │ │  cache + │ │   vector store │
+              │  repos       │ │  Celery  │ └────────────────┘
+              │  issues      │ └──────────┘
+              │  refactors   │
+              └──────────────┘
+```
+
+### Design Patterns
+| Pattern | Location |
+|---|---|
+| **Factory** | `parsers/factory.py` — selects Python/JS parser by file extension |
+| **Visitor** | `parsers/python_parser.py` — walks Python AST nodes |
+| **Strategy** | `domain/interfaces.py` — `ICodeParser`, `ILLMClient` |
+| **Repository** | `infrastructure/database/repositories/` — DB abstraction layer |
+| **Dependency Injection** | FastAPI `Depends()` for auth, DB sessions |
+| **Clean Architecture** | Domain → Services → Infrastructure, no inward dependencies |
+
+---
 
 ## Features
 
 | Feature | Description |
 |---|---|
-| **Repository Ingestion** | Clone any public GitHub repo, detect languages, count files/LOC |
-| **AST Parsing** | Extract classes, functions, imports, call graphs using the `ast` module |
-| **Dependency Graph** | Build and query a directed graph (files → classes → functions) |
-| **Vector Embeddings** | Chunk code files, embed with ChromaDB, enable semantic search |
-| **Developer Q&A (RAG)** | Answer natural-language questions using retrieved code context + LLM |
-| **Architecture Summary** | LLM-generated architecture overview from file-level summaries |
-| **Bug Detection** | Static rules (complexity, type hints, circular imports) + LLM semantic detection |
-| **Refactoring Suggestions** | Code-smell detection (God Class, Feature Envy) + LLM pattern recommendations |
-| **Async Processing** | Celery + Redis for background analysis of large repositories |
-| **Caching** | Redis-backed response caching with in-memory fallback |
+| **JWT Auth** | Register / login / protected routes with bcrypt password hashing |
+| **Repo Analysis** | Clone, parse, embed any public GitHub repository |
+| **Architecture Summary** | LLM-generated overview of codebase structure |
+| **Dependency Graph** | Interactive ReactFlow visualization (zoom, pan, filter) |
+| **Bug Detection** | Static (AST complexity, type hints) + semantic (LLM) issue finder |
+| **Refactoring Suggestions** | God Class, Feature Envy, design pattern advice with effort badges |
+| **RAG Q&A** | Ask questions about the code — answers cite source file chunks |
+| **Real-time Progress** | WebSocket stream of analysis stages |
 
 ---
 
-## Architecture
+## Project Structure
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FastAPI (API Layer)                       │
-│  POST /analyze-repo  GET /repo-summary/:id  GET /dependency-    │
-│  graph/:id  POST /ask  GET /issues/:id  GET /refactor/:id        │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────────────┐
-│                      Service Layer                               │
-│  RepoIngestionService  →  ParserService  →  EmbeddingService    │
-│  AnalysisService  →  BugDetectionService  →  RefactorService    │
-│  GraphService  →  RAGService  →  AnalysisPipeline               │
-└──────┬──────────────────────────────────────────────┬───────────┘
-       │ Repository Pattern                            │ Strategy Pattern
-┌──────▼──────────────────┐            ┌──────────────▼────────────┐
-│    Infrastructure Layer  │            │      Parser Layer          │
-│  PostgreSQL (metadata)   │            │  ParserFactory (Factory)   │
-│  ChromaDB (vectors)      │            │  PythonParser  (Visitor)   │
-│  NetworkX/Neo4j (graph)  │            │  JavaScriptParser          │
-│  Redis (cache/queue)     │            └────────────────────────────┘
-└──────────────────────────┘
-```
-
-### Design Patterns Applied
-
-| Pattern | Where |
-|---|---|
-| **Factory** | `ParserFactory` → selects correct parser by file extension |
-| **Visitor** | `_ASTVisitor` → traverses Python AST nodes |
-| **Strategy** | `ICodeParser` / `ILLMClient` → swappable implementations |
-| **Repository** | `IRepositoryStore` / `IIssueStore` / `IRefactorStore` → DB abstraction |
-| **Clean Architecture** | Domain → Services → Infrastructure, no inward dependencies |
-
----
-
-## Setup Instructions
-
-### Option A: Docker Compose (Recommended)
-
-```bash
-# 1. Clone / navigate to this directory
-cd artifacts/codebase-engine
-
-# 2. Copy environment config
-cp .env.example .env
-# Edit .env and set OPENAI_API_KEY
-
-# 3. Start all services
-docker compose up -d
-
-# 4. Check health
-curl http://localhost:8000/health
-```
-
-To also start Neo4j:
-```bash
-docker compose --profile neo4j up -d
-```
-
-To monitor Celery workers:
-```bash
-docker compose --profile monitoring up -d
-```
-
-### Option B: Local Development
-
-**Prerequisites:** Python 3.11+, (optional) PostgreSQL, (optional) Redis
-
-```bash
-cd artifacts/codebase-engine
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env — DATABASE_URL can be left blank for SQLite
-
-# Start the server
-python main.py
-# or: uvicorn main:app --reload --port 8000
-```
-
-**Start Celery worker (optional, for background processing):**
-```bash
-celery -A workers.celery_app worker --loglevel=info
+/
+├── artifacts/
+│   ├── codebase-engine/            # Python FastAPI backend
+│   │   ├── api/
+│   │   │   ├── routes/             # REST endpoints + WebSocket
+│   │   │   │   ├── auth.py         # register, login, /me
+│   │   │   │   ├── analyze.py      # POST /analyze-repo
+│   │   │   │   ├── summary.py      # GET /repo-summary
+│   │   │   │   ├── graph.py        # GET /dependency-graph
+│   │   │   │   ├── qa.py           # POST /ask
+│   │   │   │   ├── issues.py       # GET /issues
+│   │   │   │   ├── refactor.py     # GET /refactor
+│   │   │   │   ├── user_repos.py   # GET /my-repos, DELETE /repo/:id
+│   │   │   │   └── progress.py     # WS /ws/progress/:id
+│   │   │   └── middleware/
+│   │   ├── core/                   # Config, logging, exceptions
+│   │   ├── domain/                 # Models + interfaces (ports)
+│   │   ├── infrastructure/         # DB, vector store, graph, cache
+│   │   ├── services/               # Business logic + AuthService
+│   │   ├── parsers/                # AST parsers (Python, JS)
+│   │   ├── workers/                # Celery background tasks
+│   │   ├── tests/                  # 18 unit + integration tests
+│   │   ├── docker-compose.yml      # Full stack orchestration
+│   │   ├── nginx.conf              # Reverse proxy config
+│   │   └── Dockerfile
+│   │
+│   └── codebase-ui/                # React + Vite frontend
+│       └── src/
+│           ├── pages/
+│           │   ├── Home.tsx        # Landing page
+│           │   ├── Login.tsx       # Auth form
+│           │   ├── Register.tsx    # Sign-up form
+│           │   ├── Dashboard.tsx   # Repo list + submit form
+│           │   └── RepoDetails.tsx # 5-tab analysis view
+│           ├── components/
+│           │   ├── layout/         # Navbar
+│           │   └── ui/             # shadcn/ui components
+│           └── lib/
+│               ├── api.ts          # Axios API client (all endpoints)
+│               └── auth-store.ts   # Zustand JWT auth state
 ```
 
 ---
 
 ## API Reference
 
-### POST `/analyze-repo`
-Submit a GitHub repository for analysis. Returns immediately; poll for status.
+### Auth
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/engine/auth/register` | — | Create account, returns JWT |
+| `POST` | `/engine/auth/login` | — | Get JWT token |
+| `GET` | `/engine/auth/me` | Bearer | Get current user profile |
 
-```json
-{
-  "github_url": "https://github.com/tiangolo/fastapi",
-  "branch": "master",
-  "force_reanalysis": false
-}
-```
+### Repository Analysis
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/engine/analyze-repo` | optional | Submit GitHub repo for analysis |
+| `GET` | `/engine/repo-summary` | — | List all repos |
+| `GET` | `/engine/repo-summary/{id}` | — | Repo status + summary |
+| `GET` | `/engine/my-repos` | Bearer | List user's own repos |
+| `DELETE` | `/engine/repo/{id}` | Bearer | Delete repo (owner only) |
 
-**Response `202`:**
-```json
-{
-  "repo_id": "uuid",
-  "status": "cloning",
-  "message": "Analysis started. Use GET /repo-summary/{id} to track progress."
-}
-```
+### Analysis Results
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/engine/dependency-graph/{id}` | Node-link graph (filterable by type/size) |
+| `GET` | `/engine/issues/{id}` | Code issues (filter by severity, file) |
+| `GET` | `/engine/refactor/{id}` | Refactoring suggestions (filter by effort) |
+| `POST` | `/engine/ask` | RAG Q&A — answer + source file citations |
 
----
-
-### GET `/repo-summary/{repo_id}`
-Get analysis status and results.
-
-**Response `200`:**
-```json
-{
-  "repo_id": "uuid",
-  "github_url": "https://github.com/...",
-  "status": "complete",
-  "languages": ["python"],
-  "file_count": 312,
-  "total_lines": 48291,
-  "architecture_summary": "## Architecture Overview\n...",
-  "created_at": "2025-01-01T00:00:00",
-  "completed_at": "2025-01-01T00:05:00"
-}
-```
+### Real-time
+| Protocol | Path | Description |
+|---|---|---|
+| WebSocket | `/engine/ws/progress/{id}` | Analysis progress events |
 
 ---
 
-### GET `/dependency-graph/{repo_id}`
-Retrieve the code dependency graph.
+## Running Locally
 
-Query parameters:
-- `node_type` — filter by `file` | `class` | `function`
-- `max_nodes` — cap result size (default: 500)
+### Docker Compose (recommended)
 
----
+Starts everything: Nginx, Frontend, FastAPI, Celery, PostgreSQL, Redis.
 
-### POST `/ask`
-Ask a natural-language question about the codebase (RAG).
-
-```json
-{
-  "repo_id": "uuid",
-  "question": "How does authentication work in this codebase?",
-  "max_chunks": 5
-}
+```bash
+cd artifacts/codebase-engine
+cp .env.example .env
+# Edit .env — add your OPENAI_API_KEY and a JWT_SECRET
+docker compose up -d
 ```
 
-**Response `200`:**
-```json
-{
-  "repo_id": "uuid",
-  "question": "How does authentication...",
-  "answer": "Authentication is handled by...",
-  "source_chunks": [
-    {
-      "file_path": "auth/middleware.py",
-      "start_line": 42,
-      "end_line": 68,
-      "content": "...",
-      "score": 0.92
-    }
-  ]
-}
+- Frontend: http://localhost
+- API docs: http://localhost/engine/docs
+- Celery monitoring (optional): `docker compose --profile monitoring up -d`
+- Neo4j graph DB (optional): `docker compose --profile neo4j up -d`
+
+### Without Docker
+
+```bash
+# Backend
+cd artifacts/codebase-engine
+pip install -r requirements.txt
+PYTHONPATH=. python main.py     # port 8000
+
+# Frontend (from repo root)
+pnpm install
+pnpm --filter @workspace/codebase-ui run dev   # port varies
 ```
 
 ---
 
-### GET `/issues/{repo_id}`
-Get detected code issues.
+## Environment Variables
 
-Query parameters:
-- `severity` — `critical` | `high` | `medium` | `low` | `info`
-- `file_path` — substring filter
+### Backend (`.env` in `artifacts/codebase-engine/`)
+
+```env
+# Required for LLM features
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4o-mini
+
+# Required for JWT auth (change in production!)
+JWT_SECRET=your-long-random-secret
+
+# Database (defaults to SQLite if unset)
+DATABASE_URL=postgresql://user:pass@host:5432/db
+
+# Optional
+REDIS_URL=redis://localhost:6379/0
+NEO4J_URI=bolt://localhost:7687
+```
+
+### Frontend
+
+```env
+VITE_API_BASE=/engine
+```
 
 ---
 
-### GET `/refactor/{repo_id}`
-Get refactoring suggestions.
+## Analysis Pipeline
 
-Query parameters:
-- `effort` — `low` | `medium` | `high`
-- `file_path` — substring filter
+```
+POST /engine/analyze-repo
+        │
+        ▼
+  RepoIngestionService        ← Clone via GitPython
+        │
+        ▼
+  ParserService (Factory)     ← Python AST / JS regex parser
+        │
+        ▼
+  EmbeddingService            ← Chunk code → ChromaDB vectors
+        │
+        ▼
+  BugDetectionService         ← Static (AST) + LLM semantic rules
+        │
+        ▼
+  RefactorService             ← Design pattern + LLM suggestions
+        │
+        ▼
+  SummaryService              ← LLM architecture narrative
+        │
+        ▼
+  status = "complete" ✓       ← WebSocket notifies frontend
+```
 
 ---
 
@@ -217,26 +246,10 @@ Query parameters:
 
 ```bash
 cd artifacts/codebase-engine
-pytest tests/ -v
+PYTHONPATH=. pytest tests/ -v
 ```
 
-Unit tests run with no external dependencies (in-memory SQLite + mocked LLM).
-
----
-
-## Environment Variables
-
-See `.env.example` for full reference. Key variables:
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | SQLite | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis for cache and Celery |
-| `NEO4J_URI` | *(unset)* | Enable Neo4j graph DB (optional) |
-| `OPENAI_API_KEY` | *(unset)* | Your OpenAI key, or use Replit AI Integrations |
-| `LLM_MODEL` | `gpt-4o-mini` | OpenAI model for completions |
-| `CHROMA_PERSIST_DIR` | `./data/chroma` | ChromaDB storage path |
-| `REPOS_BASE_DIR` | `./data/repos` | Cloned repository storage |
+18 unit tests, all run with no external dependencies (in-memory SQLite + mocked LLM).
 
 ---
 
@@ -245,16 +258,13 @@ See `.env.example` for full reference. Key variables:
 ### Add a New Language Parser
 
 1. Create `parsers/go_parser.py` extending `BaseParser`
-2. Implement `supported_extensions`, `language`, and `_parse_content`
-3. Register in `parsers/parser_factory.py`:
-   ```python
-   factory.register(GoParser())
-   ```
+2. Implement `supported_extensions`, `language`, `_parse_content`
+3. Register in `parsers/parser_factory.py`
 
-### Add a New Analysis Rule
+### Add a New Bug Rule
 
-Add a method to `BugDetectionService._check_*` and call it from `detect_static_issues`.
+Add a `_check_*` method to `BugDetectionService` and call it from `detect_static_issues`.
 
 ### Switch to Neo4j
 
-Set `NEO4J_URI` in your environment — the `get_graph_store()` factory switches automatically.
+Set `NEO4J_URI` in your environment — `get_graph_store()` switches automatically.

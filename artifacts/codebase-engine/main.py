@@ -2,6 +2,8 @@
 
 Creates the app, mounts all routers, registers middleware, and wires up
 startup/shutdown lifecycle hooks for database and vector store initialisation.
+All routes are served under the /engine path prefix so they are reachable
+through the shared Replit reverse-proxy.
 """
 
 import os
@@ -14,11 +16,14 @@ from fastapi.responses import JSONResponse
 
 from api.middleware.logging import RequestLoggingMiddleware
 from api.routes import analyze, graph, issues, qa, refactor, summary
+from api.routes import auth, user_repos, progress
 from core.config import get_settings
 from core.exceptions import AppError
 from core.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
+
+PREFIX = "/engine"
 
 
 @asynccontextmanager
@@ -27,11 +32,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     logger.info("Starting AI Codebase Understanding Engine")
 
-    # Initialise database tables
     from infrastructure.database.postgres import init_db
     await init_db()
 
-    # Initialise data directories
     settings = get_settings()
     os.makedirs(settings.repos_base_dir, exist_ok=True)
     os.makedirs(settings.chroma_persist_dir, exist_ok=True)
@@ -56,9 +59,9 @@ def create_app() -> FastAPI:
             "deep insights including architecture explanation, dependency graphs, "
             "code summaries, bug detection, and developer Q&A."
         ),
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
+        docs_url=f"{PREFIX}/docs",
+        redoc_url=f"{PREFIX}/redoc",
+        openapi_url=f"{PREFIX}/openapi.json",
         lifespan=lifespan,
     )
 
@@ -94,16 +97,19 @@ def create_app() -> FastAPI:
             content={"error": "INTERNAL_ERROR", "message": "An unexpected error occurred."},
         )
 
-    # ── Routers ───────────────────────────────────────────────────────────────
-    app.include_router(analyze.router)
-    app.include_router(summary.router)
-    app.include_router(graph.router)
-    app.include_router(qa.router)
-    app.include_router(issues.router)
-    app.include_router(refactor.router)
+    # ── Routers (all mounted under /engine prefix) ────────────────────────────
+    app.include_router(analyze.router, prefix=PREFIX)
+    app.include_router(summary.router, prefix=PREFIX)
+    app.include_router(graph.router, prefix=PREFIX)
+    app.include_router(qa.router, prefix=PREFIX)
+    app.include_router(issues.router, prefix=PREFIX)
+    app.include_router(refactor.router, prefix=PREFIX)
+    app.include_router(auth.router, prefix=PREFIX)
+    app.include_router(user_repos.router, prefix=PREFIX)
+    app.include_router(progress.router, prefix=PREFIX)
 
-    # ── Health check ──────────────────────────────────────────────────────────
-    @app.get("/health", tags=["Health"], summary="Health check")
+    # ── Health / root ─────────────────────────────────────────────────────────
+    @app.get(f"{PREFIX}/health", tags=["Health"], summary="Health check")
     async def health() -> dict:
         from infrastructure.database.postgres import health_check
         db_ok = await health_check()
@@ -113,18 +119,22 @@ def create_app() -> FastAPI:
             "database": "ok" if db_ok else "unavailable",
         }
 
-    @app.get("/", tags=["Root"], include_in_schema=False)
+    @app.get(f"{PREFIX}", tags=["Root"], include_in_schema=False)
+    @app.get(f"{PREFIX}/", tags=["Root"], include_in_schema=False)
     async def root() -> dict:
         return {
             "name": settings.app_name,
             "version": settings.app_version,
-            "docs": "/docs",
+            "docs": f"{PREFIX}/docs",
         }
+
+    # Legacy root (helps local debugging)
+    @app.get("/", tags=["Root"], include_in_schema=False)
+    async def root_bare() -> dict:
+        return {"name": settings.app_name, "version": settings.app_version}
 
     return app
 
-
-# ── Entry point ────────────────────────────────────────────────────────────────
 
 app = create_app()
 

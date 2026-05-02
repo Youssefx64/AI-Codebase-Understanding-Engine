@@ -1,11 +1,14 @@
 """POST /analyze-repo — Submit a repository for analysis."""
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from typing import Optional
 
-from core.exceptions import RepositoryIngestionError
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, status
+
+from core.exceptions import AppError, RepositoryIngestionError
 from core.logging import get_logger
 from domain.models import AnalysisStatus, AnalyzeRepoRequest, AnalyzeRepoResponse
 from infrastructure.database.repositories.repo_repository import PostgresRepositoryStore
+from services.auth_service import AuthService
 from services.pipeline_service import AnalysisPipeline
 from services.repo_service import RepoIngestionService
 
@@ -17,6 +20,18 @@ async def _run_pipeline(repo_id: str) -> None:
     """Background task: full analysis pipeline."""
     pipeline = AnalysisPipeline()
     await pipeline.run(repo_id)
+
+
+def _extract_user_id(authorization: Optional[str]) -> Optional[str]:
+    """Try to decode a Bearer JWT; return user_id or None."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        payload = AuthService().decode_token(token)
+        return payload.get("sub")
+    except AppError:
+        return None
 
 
 @router.post(
@@ -33,7 +48,9 @@ async def _run_pipeline(repo_id: str) -> None:
 async def analyze_repo(
     payload: AnalyzeRepoRequest,
     background_tasks: BackgroundTasks,
+    authorization: Optional[str] = Header(default=None),
 ) -> AnalyzeRepoResponse:
+    user_id = _extract_user_id(authorization)
     ingestion = RepoIngestionService()
     store = PostgresRepositoryStore()
 
@@ -64,6 +81,15 @@ async def analyze_repo(
         raise HTTPException(
             status_code=exc.status_code, detail=exc.message
         ) from exc
+
+    # Associate repo with the authenticated user if a valid token was provided
+    if user_id:
+        from infrastructure.database.orm_models import RepositoryORM
+        from infrastructure.database.postgres import get_session as _gs
+        async with _gs() as session:
+            orm = await session.get(RepositoryORM, repo.repo_id)
+            if orm:
+                orm.user_id = user_id
 
     # Enqueue pipeline as a background task
     background_tasks.add_task(_run_pipeline, repo.repo_id)

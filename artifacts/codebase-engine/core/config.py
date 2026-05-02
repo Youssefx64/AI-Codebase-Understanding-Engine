@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     chunk_size: int = 512
     chunk_overlap: int = 64
 
+    # JWT Auth
+    jwt_secret: str = "change-me-in-production-use-a-long-random-secret"
+    jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+
     @property
     def effective_openai_api_key(self) -> str:
         """Get the effective OpenAI API key, preferring AI integration."""
