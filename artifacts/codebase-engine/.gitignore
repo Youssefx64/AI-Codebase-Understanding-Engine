@@ -1,4 +1,9 @@
-# Python
+# ─── Secrets & Environment Variables ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Python Artifacts ─────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -17,27 +22,38 @@ htmlcov/
 .coverage
 coverage.xml
 
-# Virtual environments
+# ─── Virtual Environments ─────────────────────────────────────────────────────
 .venv/
 venv/
 env/
 ENV/
 
-# Environment files
-.env
-!.env.example
-
-# Data directories (runtime data, not source)
+# ─── Runtime Data (never commit — can be GBs) ────────────────────────────────
 data/
 logs/
-test_db.db
 
-# IDE
+# ─── Databases ────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ─── Cryptographic & Security Files ──────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+jwt_secret*
+secrets.*
+
+# ─── IDE & OS ─────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db

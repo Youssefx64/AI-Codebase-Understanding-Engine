@@ -1,49 +1,118 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# ─── Secrets & Environment Variables ─────────────────────────────────────────
+# NEVER commit real env files — only .env.example is safe
+.env
+.env.*
+!.env.example
+!**/.env.example
 
-# compiled output
-dist
-tmp
-out-tsc
+# ─── Node / pnpm ──────────────────────────────────────────────────────────────
+node_modules/
+dist/
+tmp/
+out-tsc/
 *.tsbuildinfo
 .expo
 .expo-shared
 
-# dependencies
-node_modules
+# pnpm
+.pnpm-store/
 
-# IDEs and editors
-/.idea
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+.tox/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Replit Python packages (huge — never commit)
+.pythonlibs/
+
+# ─── Databases & Runtime Data ─────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Cloned repos, vector store, generated graphs (can be GBs)
+artifacts/codebase-engine/data/
+
+# ─── Cryptographic & Security Files ──────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+id_rsa
+id_ed25519
+*.pub
+jwt_secret*
+secrets.*
+secret.*
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log*
+
+# ─── Build Outputs ────────────────────────────────────────────────────────────
+build/
+.next/
+.nuxt/
+.svelte-kit/
+out/
+
+# ─── IDE & Editor ─────────────────────────────────────────────────────────────
+.idea/
+*.iml
 .project
 .classpath
 .c9/
 *.launch
 .settings/
 *.sublime-workspace
-
-# IDE - VSCode
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
+# ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
-# Replit
+# ─── Replit-specific (never expose internal tooling on GitHub) ────────────────
 .cache/
 .local/
+.replit
+replit.nix
+.upm/
+.cursor/
+.github/instructions/nx.instructions.md
