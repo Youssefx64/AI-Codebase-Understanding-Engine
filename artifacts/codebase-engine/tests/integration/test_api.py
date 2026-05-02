@@ -34,7 +34,7 @@ async def client():
 
 @pytest.mark.asyncio
 async def test_health_endpoint(client: AsyncClient):
-    response = await client.get("/health")
+    response = await client.get("/engine/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -42,28 +42,31 @@ async def test_health_endpoint(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_analyze_repo_validates_url(client: AsyncClient):
-    """Submitting a bad URL should fail gracefully."""
+    """Submitting a bad URL should fail gracefully (Pydantic 422 or ingestion error 400)."""
+    from core.exceptions import RepositoryIngestionError
+
     with patch(
-        "services.repo_service.RepoIngestionService.ingest",
-        side_effect=Exception("Invalid URL"),
+        "api.routes.analyze.RepoIngestionService.ingest",
+        new_callable=AsyncMock,
+        side_effect=RepositoryIngestionError("not-a-valid-url", "invalid URL format"),
     ):
         response = await client.post(
-            "/analyze-repo",
+            "/engine/analyze-repo",
             json={"github_url": "not-a-valid-url", "branch": "main"},
         )
-        assert response.status_code in (422, 500)
+        assert response.status_code in (400, 422)
 
 
 @pytest.mark.asyncio
 async def test_repo_summary_not_found(client: AsyncClient):
-    response = await client.get("/repo-summary/nonexistent-id")
+    response = await client.get("/engine/repo-summary/nonexistent-id")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_ask_repo_not_found(client: AsyncClient):
     response = await client.post(
-        "/ask",
+        "/engine/ask",
         json={
             "repo_id": "nonexistent-id",
             "question": "What does this repo do?",
@@ -74,18 +77,18 @@ async def test_ask_repo_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_issues_repo_not_found(client: AsyncClient):
-    response = await client.get("/issues/nonexistent-id")
+    response = await client.get("/engine/issues/nonexistent-id")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_list_repos_empty(client: AsyncClient):
-    response = await client.get("/repo-summary")
+    response = await client.get("/engine/repo-summary")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 @pytest.mark.asyncio
 async def test_dependency_graph_not_found(client: AsyncClient):
-    response = await client.get("/dependency-graph/nonexistent-id")
+    response = await client.get("/engine/dependency-graph/nonexistent-id")
     assert response.status_code == 404
